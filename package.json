@@ -4,9 +4,20 @@
   "description": "Intended for use when running mocha in web-browsers, enables running mocha test suites defined in HTML documents and include their results in the top-level report as if they were part of the main context.",
   "main": "index.js",
   "scripts": {
+    "build": "tsc && rollup -f iife -g mocha:Mocha --context window --output.name MochaSuiteChild -i lib/index.js -o mocha-suite-child.js -m mocha-suite-child.js.map",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "The Polymer Project authors",
-  "license": "BSD-3-Clause"
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "@types/chai": "^4.2.3",
+    "@types/mocha": "^5.2.7",
+    "chai": "^4.2.0",
+    "clang-format": "^1.2.4",
+    "mocha": "^6.2.0",
+    "rollup": "^1.21.4",
+    "tslint": "^5.20.0",
+    "typescript": "^3.6.3"
+  }
 }
