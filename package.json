@@ -1,0 +1,12 @@
+{
+  "name": "mocha-suite-child",
+  "version": "1.0.0",
+  "description": "Intended for use when running mocha in web-browsers, enables running mocha test suites defined in HTML documents and include their results in the top-level report as if they were part of the main context.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "The Polymer Project authors",
+  "license": "BSD-3-Clause"
+}
