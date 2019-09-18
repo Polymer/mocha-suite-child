@@ -12,6 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {inherit} from './util';
+
 interface EventListenerDescriptor {
   listener: EventListenerOrEventListenerObject;
   target: EventTarget;
@@ -40,16 +42,6 @@ export class ChildRunner {
     // iframe will expand the `src`, so we'll use that version.
     this.url = this.iframe.src;
     this.state = 'initialized';
-  }
-
-  /**
-   * Delegates to the `Mocha.Runner#on` method inherited from the `EventEmitter`
-   * API.
-   * @param eventName The name of the event to listen for.
-   * @param listener The handler function for the event.
-   */
-  on(eventName: string, listener: (...extra: unknown[]) => void) {
-    Mocha.Runner.prototype.on.apply(this, [eventName, listener]);
   }
 
   async run(loadTimeout: number = ChildRunner.loadTimeout): Promise<void> {
@@ -85,7 +77,7 @@ export class ChildRunner {
     }
   }
 
-  private done(error?: Error) {
+  done(error?: Error) {
     this.clearTimeout();
     if (error) {
       if (this.runReject) {
@@ -134,3 +126,7 @@ export class ChildRunner {
     }
   }
 }
+
+// This is how we will obtain all the features from `Mocha.Runner`, especially
+// the `EventEmitter` methods.
+inherit(ChildRunner.prototype, Mocha.Runner.prototype);

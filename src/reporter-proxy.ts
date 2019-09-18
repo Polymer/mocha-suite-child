@@ -13,30 +13,41 @@
  */
 
 import Mocha from 'mocha';
+import {ChildRunner} from './child-runner';
+import {inherit} from './util';
 
-export const MochaEventNames = [
-  'start',
-  'end',
-  'suite',
-  'suite end',
-  'test',
-  'test end',
-  'hook',
-  'hook end',
-  'pass',
-  'fail',
-  'pending',
+// @ts-ignore these exist but not in the typings
+const {
+  EVENT_RUN_BEGIN,
+  EVENT_RUN_END,
+  EVENT_TEST_FAIL,
+  EVENT_TEST_PASS,
+  EVENT_TEST_PENDING,
+  EVENT_SUITE_BEGIN,
+  EVENT_SUITE_END,
+  EVENT_HOOK_BEGIN,
+  EVENT_HOOK_END,
+} =
+    // @ts-ignore this exists, but not in the typings
+    Mocha.Runner.constants;
+
+export const ProxyEventNames = [
+  EVENT_RUN_BEGIN,
+  EVENT_RUN_END,
+  EVENT_TEST_FAIL,
+  EVENT_TEST_PASS,
+  EVENT_TEST_PENDING,
+  EVENT_SUITE_BEGIN,
+  EVENT_SUITE_END,
+  EVENT_HOOK_BEGIN,
+  EVENT_HOOK_END,
 ];
-
-export interface MochaEventEmitter {
-  emit: typeof Mocha.Runner.prototype.emit;
-}
 
 /**
  * Basically this is the type expression for a Reporter constructor.
  */
 export interface ReporterFactory {
-  new(runner: MochaEventEmitter, options: unknown): Mocha.Reporter;
+  new(runner: unknown, options: unknown): Mocha.Reporter;
 }
 
 type ProxiedEvent = [string, Mocha.IRunner, ...unknown[]];
@@ -56,23 +67,18 @@ export class ReporterProxy {
 
   constructor(reporters: ReporterFactory[], options: unknown) {
     this.reporters = reporters.map((reporter) => new reporter(this, options));
-    this.emit('start');
+    // TODO(usergenic): Can I get this in a type definition since I copied it
+    // over from Mocha.Runner.prototype?
+    // @ts-ignore
+    this.emit(EVENT_RUN_BEGIN);
   }
 
   done() {
     this.flushEventBuffer();
-    this.emit('end');
-  }
-
-  /**
-   * This method delegates to the `EventEmitter` API that `Mocha.Runner`
-   * inherits from:
-   * https://nodejs.org/api/events.html#events_emitter_emit_eventname_args
-   * @param eventName Name of event to emit.
-   * @param extraArgs Extra data to emit for event.
-   */
-  emit(eventName: string, ...extra: unknown[]): boolean {
-    return Mocha.Runner.prototype.emit.apply(this, [eventName, ...extra]);
+    // TODO(usergenic): Can I get this in a type definition since I copied it
+    // over from Mocha.Runner.prototype?
+    // @ts-ignore
+    this.emit(EVENT_RUN_END);
   }
 
   /**
@@ -81,29 +87,9 @@ export class ReporterProxy {
    */
   listen(runner: Mocha.IRunner) {
     this.total = this.total + 1;
-    for (const eventName of MochaEventNames) {
+    for (const eventName of ProxyEventNames) {
       runner.on(eventName, this.proxyEvent.bind(this, eventName, runner));
     }
-  }
-
-  /**
-   * Delegates to the `Mocha.Runner#on` method inherited from the `EventEmitter`
-   * API.
-   * @param eventName The name of the event to listen for.
-   * @param listener The handler function for the event.
-   */
-  on(eventName: string, listener: (...extra: unknown[]) => void) {
-    Mocha.Runner.prototype.on.apply(this, [eventName, listener]);
-  }
-
-  /**
-   * Delegates to the `Mocha.Runner#once` method inherited from the
-   * `EventEmitter` API.
-   * @param eventName The name of the event to listen for.
-   * @param listener The handler function for the event.
-   */
-  once(eventName: string, listener: (...extra: unknown[]) => void) {
-    Mocha.Runner.prototype.once.apply(this, [eventName, listener]);
   }
 
   private flushEventBuffer() {
@@ -121,14 +107,27 @@ export class ReporterProxy {
       return;
     }
 
-    if (eventName === 'start') {
+    console.log(
+        'proxyEvent',
+        eventName,
+        (runner as unknown as ChildRunner).url,
+        ...extra);
+
+    if (eventName === EVENT_RUN_BEGIN) {
       this.currentRunner = runner;
       this.total = this.total - 1 + runner.total;
-    } else if (eventName === 'end') {
+    } else if (eventName === EVENT_RUN_END) {
       this.currentRunner = undefined;
       this.flushEventBuffer();
     } else {
+      // TODO(usergenic): Can I get this in a type definition since I copied it
+      // over from Mocha.Runner.prototype?
+      // @ts-ignore
       this.emit(eventName, ...extra);
     }
   }
 }
+
+// This is how we will obtain all the features from `Mocha.Runner`, especially
+// the `EventEmitter` methods.
+inherit(ReporterProxy.prototype, Mocha.Runner.prototype);

@@ -17,43 +17,80 @@ import {ChildRunner} from './child-runner';
 import {ReporterProxy} from './reporter-proxy';
 import {createStatsCollector} from './stats-collector';
 
-export async function runChildren(
-    urls: string[], reporterProxy: ReporterProxy, _options: unknown):
-    Promise<void[]> {
-  const childRunners: ChildRunner[] = urls.map((url) => new ChildRunner(url));
-  for (const childRunner of childRunners) {
-    reporterProxy.listen(childRunner as unknown as Mocha.IRunner);
-  }
-  return Promise.all(childRunners.map((runner) => runner.run()));
-};
-
-export function suiteChild(url: string) {
-  suiteChildURLs.push(url);
-}
-
-const suiteChildURLs: string[] = [];
-
 declare global {
   interface Window {
     mocha: Mocha;
     Mocha: typeof Mocha;
-    suiteChild: typeof suiteChild;
+    suiteChild: (typeof suiteChild)&{
+      reporterProxy?: ReporterProxy,
+      childRunners?: Map<string, ChildRunner>,
+    };
   }
 }
 
 window.suiteChild = suiteChild;
+window.suiteChild.childRunners = new Map<string, ChildRunner>();
+const originalMochaRun = window.mocha.run.bind(window.mocha);
 
-const originalMochaRun = window.mocha.run;
+export function suiteChild(url: string) {
+  const childRunner = new ChildRunner(url);
+  window.suiteChild.childRunners!.set(childRunner.url, childRunner);
+}
+
 window.mocha.run = (fn?: (failures: number) => void) => {
   const originalReporter = window.mocha['_reporter'];
-  const reporterProxy = new ReporterProxy([originalReporter], {});
-  createStatsCollector(reporterProxy as any);
+
+  const parentSuiteChild =
+      window.parent !== window && window.parent && window.parent.suiteChild;
+
+  let reporterProxy: ReporterProxy|undefined = undefined;
+  let childRunner: ChildRunner|undefined = undefined;
+
+  if (parentSuiteChild) {
+    reporterProxy = parentSuiteChild.reporterProxy!;
+    childRunner = parentSuiteChild.childRunners!.get(window.location.href)!;
+  }
+
+  if (!reporterProxy) {
+    reporterProxy = window.suiteChild.reporterProxy =
+        new ReporterProxy([originalReporter], {});
+    // TODO(usergenic): Figure out if needed; this seems cargo-culty
+    createStatsCollector(reporterProxy as any);
+  }
+
   function reporterConstructor(
       runner: Mocha.IRunner, _options: unknown): Mocha.Reporter {
-    reporterProxy.listen(runner);
+    console.log('i am making reporter proxy listen to', runner);
+    reporterProxy!.listen(runner);
+    // @ts-ignore
+    this.done = true;
     return reporterProxy as unknown as Mocha.Reporter;
   };
+
   window.mocha.reporter(reporterConstructor as any);
-  runChildren(suiteChildURLs, reporterProxy, mocha.options);
-  return originalMochaRun(fn);
+
+  const childRunnersPromise = Promise.all(
+      [...window.suiteChild.childRunners!.values()].map((runner) => {
+        reporterProxy!.listen(runner as unknown as Mocha.Runner);
+        return runner.run();
+      }));
+
+  return originalMochaRun((failures: number) => {
+    console.log('oh hai!');
+    childRunnersPromise.then(() => {
+      reporterProxy!.done();
+      console.log(
+          'Super Done!',
+          window.location.href,
+          [...window.suiteChild.childRunners!.keys()]);
+      if (fn) {
+        fn(failures);
+      }
+    });
+
+    if (childRunner) {
+      console.log('I reported my childRunner.done()');
+      childRunner.done();
+    }
+  });
 };
