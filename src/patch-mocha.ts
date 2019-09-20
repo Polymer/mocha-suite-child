@@ -13,37 +13,37 @@
  */
 import Mocha from 'mocha';
 import {RunnerEventProxy} from './runner-event-proxy';
+import {createStatsCollector} from './stats-collector';
 
 export const patchMocha = (mocha: typeof window.mocha) => {
   const originalRun = mocha.run.bind(mocha);
 
   mocha.run = (fn?: (failures: number) => void) => {
     const originalReporter = window.mocha['_reporter'];
-    const instance =
-        window.MochaSuiteChild.root.instances.get(window.location.href);
+    const instance = window.MochaSuiteChild.instance;
+
     function PseudoReporterConstructor(
         runner: Mocha.Runner, options: Mocha.MochaOptions) {
+      const proxy = window.MochaSuiteChild.runnerEventProxy =
+          new RunnerEventProxy();
+      createStatsCollector(proxy as unknown as Mocha.Runner);
+      proxy.url = window.location.href;
+      proxy.listen(runner, proxy.url);
       if (instance) {
         instance.setRunner(runner);
-        window.MochaSuiteChild.root.runnerEventProxy!.listen(runner);
-        new originalReporter(runner, options);
-      } else {
-        const proxy = window.MochaSuiteChild.root.runnerEventProxy =
-            new RunnerEventProxy();
-        proxy.listen(runner);
-        new originalReporter(proxy, options);
+        window.MochaSuiteChild.parentScope!.runnerEventProxy!.listen(
+            proxy as unknown as Mocha.Runner, proxy.url);
       }
+      new originalReporter(proxy, options);
     }
+
     window.mocha.reporter(
         PseudoReporterConstructor as unknown as Mocha.ReporterConstructor);
 
-    // If we are the top-level (i.e. there is no `instance` of a MochaSuiteChild
-    // running for this window) then we must
-    if (!instance) {
-      for (const instance of window.MochaSuiteChild.root.instances.values()) {
-        instance.run();
-      }
+    for (const instance of window.MochaSuiteChild.instances.values()) {
+      instance.run();
     }
+
     return originalRun(fn);
   };
 }
