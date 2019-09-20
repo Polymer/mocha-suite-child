@@ -1,18 +1,23 @@
 <link type="text/css" rel="stylesheet" href="../node_modules/mocha/mocha.css">
+<div id="mocha-suite-children"></div>
 <div id="mocha"></div>
+
 <script src="../node_modules/mocha/mocha.js"></script>
 <script src="../mocha-suite-child.js"></script>
 <script src="../node_modules/chai/chai.js"></script>
+
 <script>
   mocha.setup('tdd');
-  mocha.checkLeaks();
+
   suiteChild('child-1.html?query=a');
   suiteChild('child-1.html?query=b');
   suiteChild('child-2.html');
+
   suite('oh hai', () => {
     test('local test', () => {
       chai.assert(true);
     });
   });
+
   mocha.run();
 </script>

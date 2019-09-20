@@ -12,10 +12,14 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import Mocha from 'mocha';
 import {MochaSuiteChild} from './mocha-suite-child';
-import {patchMocha} from './patch-mocha';
 
-window.MochaSuiteChild = MochaSuiteChild;
-window.suiteChild = (url: string) => MochaSuiteChild.suiteChild(url);
-
-patchMocha(window.mocha);
+declare global {
+  interface Window {
+    mocha: Mocha;
+    Mocha: typeof Mocha;
+    MochaSuiteChild: typeof MochaSuiteChild;
+    suiteChild: typeof MochaSuiteChild.suiteChild;
+  }
+}

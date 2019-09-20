@@ -6,14 +6,15 @@
 <script>
   var expect = chai.expect;
   mocha.setup('tdd');
-  mocha.checkLeaks();
+
   suite('suite child 2', () => {
     test('test 1 in suite child 2', () => {
-      expect(1).equal(1);
+      expect(1).equal(0);
     });
     test('test 2 in suite child 2', () => {
       expect(2).equal(2);
     });
   });
+
   mocha.run();
 </script>
