@@ -12,6 +12,12 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+/**
+ * Copies over any properties from the source object onto the target object
+ * that are not already present on the target object.
+ * @param target Object to copy properties to.
+ * @param source Object to copy properties from.
+ */
 export function inherit(target: Object, source: Object): void {
   const targetPropertyNames = allPropertyNames(target);
   for (const propertyName of allPropertyNames(source)) {
@@ -22,6 +28,11 @@ export function inherit(target: Object, source: Object): void {
   }
 }
 
+/**
+ * List all property names for the Object.  Includes all properties up the
+ * prototype chain.
+ * @param object Instance to get property names from.
+ */
 function allPropertyNames(object: Object): string[] {
   const propertyNames = Object.getOwnPropertyNames(object);
   const prototype = Object.getPrototypeOf(object);

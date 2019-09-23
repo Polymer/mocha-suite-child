@@ -15,6 +15,11 @@ import Mocha from 'mocha';
 import {RunnerEventProxy} from './runner-event-proxy';
 import {createStatsCollector} from './stats-collector';
 
+/**
+ * Wraps the`run` method of a Mocha instance to run suite children and proxy
+ * their events up to the current reporter, by having the reporter listen to the
+ * proxy instead of the current runner.
+ */
 export const patchMocha = (mocha: typeof window.mocha) => {
   const originalRun = mocha.run.bind(mocha);
 
@@ -22,11 +27,25 @@ export const patchMocha = (mocha: typeof window.mocha) => {
     const originalReporter = window.mocha['_reporter'];
     const instance = window.MochaSuiteChild.instance;
 
+    /**
+     * The API of `Mocha#reporter` is that it be given a constructor function
+     * that will `new` up an instance of a Reporter.  We already have a reporter
+     * instance, so our constructor will just be a function that hooks it up to
+     * the provided runner.
+     * @param runner
+     * @param options
+     */
     function PseudoReporterConstructor(
         runner: Mocha.Runner, options: Mocha.MochaOptions) {
       const proxy = window.MochaSuiteChild.runnerEventProxy =
           new RunnerEventProxy();
+
+      // If you don't call this function that attaches the stats objects to the
+      // runner instance, Mocha will just silently fail as it attempts to
+      // increment stats on the events like EVENT_TEST_PASS etc and then you
+      // will tear out your hair looking for why it isn't working for two days.
       createStatsCollector(proxy as unknown as Mocha.Runner);
+
       proxy.url = window.location.href;
       proxy.listen(runner, proxy.url);
       if (instance) {
