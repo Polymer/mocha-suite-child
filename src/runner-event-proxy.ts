@@ -21,7 +21,7 @@ const {
     // @ts-ignore this exists, but not in the typings
     Mocha.Runner.constants;
 
-type ProxyEvent = [string, Mocha.Runner, string, ...unknown[]];
+type ProxyEvent = [string, Mocha.Runner, string, unknown[]];
 
 // `RunnerEventProxy` instances inherit methods from `Mocha.Runner` for the
 // `EventEmitter` functionality.
@@ -46,7 +46,8 @@ export class RunnerEventProxy {
           Mocha.Runner.constants[eventNameKey];
       runner.on(
           eventName,
-          (...extra) => this.proxyEvent(eventName, runner, url, ...extra));
+          (a?: unknown, b?: unknown, c?: unknown, d?: unknown, e?: unknown) =>
+              this.proxyEvent(eventName, runner, url, [a, b, c, d, e]));
     }
   }
 
@@ -54,15 +55,14 @@ export class RunnerEventProxy {
     const events = this.eventBuffer;
     this.eventBuffer = [];
     for (const event of events) {
-      this.proxyEvent(...event);
+      this.proxyEvent.apply(this, event);
     }
   }
 
   private proxyEvent(
-      eventName: string, runner: Mocha.Runner, url: string,
-      ...extra: unknown[]) {
+      eventName: string, runner: Mocha.Runner, url: string, extra: unknown[]) {
     if (this.currentRunner && this.currentRunner !== runner) {
-      this.eventBuffer.push([eventName, runner, url, ...extra]);
+      this.eventBuffer.push([eventName, runner, url, extra]);
       return;
     }
 
@@ -88,7 +88,7 @@ export class RunnerEventProxy {
       }
       this.emit(EVENT_RUN_END);
     } else {
-      this.emit(eventName, ...extra);
+      this.emit(eventName, extra[0], extra[1], extra[2], extra[3], extra[4]);
     }
   }
 }

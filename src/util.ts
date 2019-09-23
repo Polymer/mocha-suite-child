@@ -26,7 +26,7 @@ function allPropertyNames(object: Object): string[] {
   const propertyNames = Object.getOwnPropertyNames(object);
   const prototype = Object.getPrototypeOf(object);
   if (prototype) {
-    propertyNames.push(...allPropertyNames(prototype));
+    propertyNames.push.apply(propertyNames, allPropertyNames(prototype));
   }
   return propertyNames;
 }
