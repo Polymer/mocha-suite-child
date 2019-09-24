@@ -11,12 +11,13 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
+const Koa = require('koa')
+const mount = require('koa-mount')
+const staticFiles = require('koa-static')
+const {nodeResolve} = require('koa-node-resolve')
+const {esmTransform} = require('koa-esm-transform')
 
-import {MochaSuiteChild} from './mocha-suite-child';
-import {patchMocha} from './patch-mocha';
-
-window.MochaSuiteChild = MochaSuiteChild;
-window.suiteChild = (labelOrURL: string, url?: string) =>
-    MochaSuiteChild.suiteChild(labelOrURL, url);
-
-patchMocha(window.mocha);
+module.exports = (karma) => new Koa()
+  .use(esmTransform())
+  .use(mount('/base', new Koa().use(nodeResolve()).use(staticFiles('.'))))
+  .use(karma)

@@ -12,7 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 import Mocha from 'mocha';
-import {RunnerEventProxy} from './runner-event-proxy';
+
+import {MochaRunnerEvents, RunnerEventProxy} from './runner-event-proxy';
 import {createStatsCollector} from './stats-collector';
 
 /**
@@ -26,6 +27,14 @@ export const patchMocha = (mocha: typeof window.mocha) => {
   mocha.run = (fn?: (failures: number) => void) => {
     const originalReporter = window.mocha['_reporter'];
     const instance = window.MochaSuiteChild.instance;
+    const proxy = window.MochaSuiteChild.runnerEventProxy =
+        new RunnerEventProxy();
+
+    // If you don't call this function that attaches the stats objects to the
+    // runner instance, Mocha will just silently fail as it attempts to
+    // increment stats on the events like EVENT_TEST_PASS etc and then you
+    // will tear out your hair looking for why it isn't working for two days.
+    createStatsCollector(proxy as unknown as Mocha.Runner);
 
     /**
      * The API of `Mocha#reporter` is that it be given a constructor function
@@ -37,32 +46,25 @@ export const patchMocha = (mocha: typeof window.mocha) => {
      */
     function PseudoReporterConstructor(
         runner: Mocha.Runner, options: Mocha.MochaOptions) {
-      const proxy = window.MochaSuiteChild.runnerEventProxy =
-          new RunnerEventProxy();
-
-      // If you don't call this function that attaches the stats objects to the
-      // runner instance, Mocha will just silently fail as it attempts to
-      // increment stats on the events like EVENT_TEST_PASS etc and then you
-      // will tear out your hair looking for why it isn't working for two days.
-      createStatsCollector(proxy as unknown as Mocha.Runner);
-
       proxy.url = window.location.href;
       proxy.listen(runner, proxy.url);
       if (instance) {
-        instance.setRunner(runner);
+        runner.on(
+            MochaRunnerEvents.EVENT_RUN_END,
+            () => runInstances.then(() => instance.done()));
         window.MochaSuiteChild.parentScope!.runnerEventProxy!.listen(
             proxy as unknown as Mocha.Runner, proxy.url);
       }
+      runner.on(
+          MochaRunnerEvents.EVENT_RUN_END,
+          () => runInstances.then(() => proxy.done()));
       new originalReporter(proxy, options);
     }
 
     window.mocha.reporter(
         PseudoReporterConstructor as unknown as Mocha.ReporterConstructor);
 
-    for (const instance of window.MochaSuiteChild.instances.values()) {
-      instance.run();
-    }
-
+    const runInstances = window.MochaSuiteChild.runInstances();
     return originalRun(fn);
   };
 }

@@ -87,12 +87,20 @@ export interface RunnerEventProxy {
 
 export class RunnerEventProxy {
   total: number = 0;
+  stats?: Mocha.Stats;
   url?: string;
   private eventBuffer: ProxyEvent[] = [];
   private currentRunner?: Mocha.Runner;
 
+  done() {
+    this.proxyEvent(
+        MochaRunnerEvents.EVENT_RUN_END, this.currentRunner!, this.url!, []);
+  }
+
   listen(runner: Mocha.Runner, url: string) {
-    this.total = this.total + runner.total;
+    this.total = this.total + runner.stats!.tests;
+    console.log(`listening ${url} to ${this.total}`);
+    console.log(runner);
     for (const eventNameKey of Object.keys(MochaRunnerEvents)) {
       const eventName: string = MochaRunnerEvents[eventNameKey];
       runner.on(
@@ -102,13 +110,14 @@ export class RunnerEventProxy {
     }
   }
 
-  private flushEventBuffer() {
-    const events = this.eventBuffer;
-    this.eventBuffer = [];
-    for (const event of events) {
-      this.proxyEvent.apply(this, event);
-    }
-  }
+  // private aggregateStats(stats: Mocha.Stats) {
+  //   const myStats = this.stats!;
+  //   myStats.suites = myStats.suites + stats.suites;
+  //   myStats.tests = myStats.tests + stats.tests;
+  //   myStats.passes = myStats.passes + stats.passes;
+  //   myStats.pending = myStats.pending + stats.pending;
+  //   myStats.failures = myStats.failures + stats.failures;
+  // }
 
   private proxyEvent(
       eventName: string, runner: Mocha.Runner, url: string, extra: unknown[]) {
@@ -127,10 +136,8 @@ export class RunnerEventProxy {
       this.currentRunner = undefined;
       this.flushEventBuffer();
       // If any children are still running, we can't emit the run end event yet.
-      for (const instance of window.MochaSuiteChild.instances.values()) {
-        if (instance.running) {
-          return;
-        }
+      if (window.MochaSuiteChild.instancesRunning) {
+        return;
       }
       // If the event buffer is not empty after we've flushed it, we can't emit
       // the run end event yet.
@@ -140,6 +147,14 @@ export class RunnerEventProxy {
       this.emit(MochaRunnerEvents.EVENT_RUN_END);
     } else {
       this.emit(eventName, extra[0], extra[1], extra[2], extra[3], extra[4]);
+    }
+  }
+
+  private flushEventBuffer() {
+    const events = this.eventBuffer;
+    this.eventBuffer = [];
+    for (const event of events) {
+      this.proxyEvent.apply(this, event);
     }
   }
 }

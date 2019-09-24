@@ -6,15 +6,16 @@
 <script src="../node_modules/chai/chai.js"></script>
 
 <script>
+  const expect = chai.expect;
   mocha.setup('tdd');
 
-  suiteChild('child-1.html?query=a');
-  suiteChild('child-1.html?query=b');
-  suiteChild('child-2.html');
+  suiteChild('Child Suite 1 with query "a"', 'child-1.html?query=a');
+  suiteChild('Child Suite 1 with query "b"', 'child-1.html?query=b');
+  suiteChild('Child Suite 2', 'child-2.html');
 
   suite('oh hai', () => {
     test('local test', () => {
-      chai.assert(true);
+      expect(1).equal(1);
     });
   });
 
