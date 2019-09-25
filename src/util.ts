@@ -21,7 +21,7 @@
 export function inherit(target: Object, source: Object): void {
   const targetPropertyNames = allPropertyNames(target);
   for (const propertyName of allPropertyNames(source)) {
-    if (!targetPropertyNames.includes(propertyName)) {
+    if (targetPropertyNames.indexOf(propertyName) === -1) {
       // @ts-ignore - It says that
       target[propertyName] = source[propertyName];
     }
