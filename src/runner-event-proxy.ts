@@ -98,9 +98,7 @@ export class RunnerEventProxy {
   }
 
   listen(runner: Mocha.Runner, url: string) {
-    this.total = this.total + runner.stats!.tests;
-    console.log(`listening ${url} to ${this.total}`);
-    console.log(runner);
+    this.total = this.total + runner.total;
     for (const eventNameKey of Object.keys(MochaRunnerEvents)) {
       const eventName: string = MochaRunnerEvents[eventNameKey];
       runner.on(
@@ -110,17 +108,10 @@ export class RunnerEventProxy {
     }
   }
 
-  // private aggregateStats(stats: Mocha.Stats) {
-  //   const myStats = this.stats!;
-  //   myStats.suites = myStats.suites + stats.suites;
-  //   myStats.tests = myStats.tests + stats.tests;
-  //   myStats.passes = myStats.passes + stats.passes;
-  //   myStats.pending = myStats.pending + stats.pending;
-  //   myStats.failures = myStats.failures + stats.failures;
-  // }
-
   private proxyEvent(
       eventName: string, runner: Mocha.Runner, url: string, extra: unknown[]) {
+    const instance = window.MochaSuiteChild.instance;
+
     if (this.currentRunner && this.currentRunner !== runner) {
       this.eventBuffer.push([eventName, runner, url, extra]);
       return;
@@ -146,6 +137,13 @@ export class RunnerEventProxy {
       }
       this.emit(MochaRunnerEvents.EVENT_RUN_END);
     } else {
+      // Manipulate the title of the suite with the label prefix.
+      // TODO(usergenic): Might be better to wrap the whole child run in a
+      // synthetic suite definition.
+      if (instance && eventName === MochaRunnerEvents.EVENT_SUITE_BEGIN) {
+        const suite = extra[0] as unknown as Mocha.Suite;
+        suite.title = instance.label + ' ' + suite.title;
+      }
       this.emit(eventName, extra[0], extra[1], extra[2], extra[3], extra[4]);
     }
   }

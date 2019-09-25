@@ -64,6 +64,7 @@ export const patchMocha = (mocha: typeof window.mocha) => {
     window.mocha.reporter(
         PseudoReporterConstructor as unknown as Mocha.ReporterConstructor);
 
+    // TODO(usergenic): Apparently the summary line of the karma reporter that
     const runInstances = window.MochaSuiteChild.runInstances();
     return originalRun(fn);
   };
