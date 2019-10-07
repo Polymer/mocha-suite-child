@@ -6,7 +6,8 @@ module.exports = {
     file: 'mocha-suite-child.js',
     format: 'iife',
     globals: {
-      mocha: 'Mocha'
+      mocha: 'Mocha',
+      'ts-polyfill/lib/es2018-promise': 'Promise'
     },
     name: 'MochaSuiteChild'
   }

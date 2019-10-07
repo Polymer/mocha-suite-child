@@ -51,7 +51,7 @@ export const patchMocha = (mocha: typeof window.mocha) => {
       if (instance) {
         runner.on(
             MochaRunnerEvents.EVENT_RUN_END,
-            () => runInstances.then(() => instance.done()));
+            () => runInstances(() => instance.done()));
         window.MochaSuiteChild.parentScope!.runnerEventProxy!.listen(
             proxy as unknown as Mocha.Runner, proxy.url);
       }
@@ -65,7 +65,9 @@ export const patchMocha = (mocha: typeof window.mocha) => {
         PseudoReporterConstructor as unknown as Mocha.ReporterConstructor);
 
     // TODO(usergenic): Apparently the summary line of the karma reporter that
-    const runInstances = window.MochaSuiteChild.runInstances();
-    return originalRun(fn);
+    window.MochaSuiteChild.runInstances((_err?: Error) => {
+      originalRun(fn);
+    });
+    return proxy;
   };
 }
