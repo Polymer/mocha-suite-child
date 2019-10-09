@@ -2,11 +2,37 @@
   "name": "mocha-suite-child",
   "version": "1.0.0",
   "description": "Intended for use when running mocha in web-browsers, enables running mocha test suites defined in HTML documents and include their results in the top-level report as if they were part of the main context.",
-  "main": "index.js",
+  "main": "mocha-suite-child.js",
+  "files": [
+    "mocha-suite-child.js",
+    "lib/"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc && rollup -c",
+    "test": "karma-proxy run --single-run --proxyHostname 127.0.0.1 --proxyPort 9000"
   },
   "keywords": [],
   "author": "The Polymer Project authors",
-  "license": "BSD-3-Clause"
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "@types/chai": "^4.2.3",
+    "@types/mocha": "^5.2.7",
+    "chai": "^4.2.0",
+    "clang-format": "^1.2.4",
+    "karma": "^4.3.0",
+    "karma-chrome-launcher": "^3.1.0",
+    "karma-mocha": "^1.3.0",
+    "karma-spec-reporter": "0.0.32",
+    "koa": "^2.8.1",
+    "koa-esm-transform": "^1.0.0-pre.1",
+    "koa-karma-proxy": "^1.0.0-pre.5",
+    "koa-mount": "^4.0.0",
+    "koa-node-resolve": "^1.0.0-pre.6",
+    "koa-static": "^5.0.0",
+    "mocha": "^6.2.0",
+    "rollup": "^1.21.4",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "tslint": "^5.20.0",
+    "typescript": "^3.6.3"
+  }
 }
