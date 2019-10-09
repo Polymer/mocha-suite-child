@@ -1,4 +1,5 @@
 node_modules/
 lib/
-mocha-suite-child*
+mocha-suite-child.js
+mocha-suite-child.d.ts
 .vscode/
