@@ -12,4 +12,13 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-export class RunnerProxy {}
+import {inherit} from './util';
+import {Runner} from 'mocha';
+import {createStatsCollector} from './stats-collector';
+export class RunnerProxy {
+  constructor() {
+    createStatsCollector(this as unknown as Runner);
+  }
+}
+
+inherit(RunnerProxy.prototype, Runner.prototype);
