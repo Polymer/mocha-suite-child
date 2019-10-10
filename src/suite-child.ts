@@ -13,14 +13,21 @@
  */
 
 import {Controller} from './controller';
+import {MochaRunnerEvents, RunnerProxy} from './runner-proxy';
 
+/**
+ * Defines and manages the execution of an external HTML document containing a
+ * separate Mocha test suite, which happens in an IFrame.
+ */
 export class SuiteChild {
+  connected: boolean = false;
   label: string;
-  url: string;
   running: boolean = false;
+  url: string;
 
   private controller: Controller;
   private iframe: HTMLIFrameElement;
+  private runnerProxy?: RunnerProxy;
   private timeoutId?: number;
 
   constructor(controller: Controller, labelOrURL: string, url?: string) {
@@ -33,7 +40,7 @@ export class SuiteChild {
 
     // We need to ensure that relative URLs are represented explicitly with
     // leading `./` or they'll be interpreted as absolute when we set the `src`
-    // of the iframe.
+    // of the IFrame.
     this.iframe.src =
         !(url.match(/^[\.\/]/) || url.match(/:/)) ? `./${url}` : url;
 
@@ -41,18 +48,45 @@ export class SuiteChild {
     this.url = this.iframe.src;
   }
 
-  done(error?: Error) {
-    this.running = false;
-    clearTimeout(this.timeoutId);
-    setTimeout(() => this.controller.container.removeChild(this.iframe), 1);
-    this.controller.notifySuiteChildDone(this, error);
+  /**
+   * Called from the child iframe and given the runner proxy from that context.
+   * We do this so that the local context's runner proxy is able to listen to
+   * the runner proxy's events and obtain its registered total number of tests
+   * for the reporter.
+   */
+  notifyConnected(runnerProxy: RunnerProxy) {
+    this.connected = true;
+    this.runnerProxy = runnerProxy;
+    this.controller.runnerProxy.listen(runnerProxy, this.url);
+    this.controller.notifySuiteChildConnected(this);
+    this.runnerProxy.on(MochaRunnerEvents.EVENT_RUN_END, () => this.done());
   }
 
-  run() {
+  /**
+   * Appends the IFrame for the test suite to the container element which
+   * initiates the loading the document at the location specified by the
+   * IFrame's src attribute.  When that document has loaded and its `mocha.run`
+   * has been called, this `SuiteChild` instance will be notified by having its
+   * `notifyConnected` method called by the child IFrame, with its runner proxy.
+   */
+  run(container: HTMLElement, loadTimeout: number) {
     this.running = true;
-    this.controller.container.appendChild(this.iframe);
+
+    // TODO(usergenic): Test this.
+    // If this is a repeat execution of the suite child, we may need to remove
+    // it from the DOM before re-appending it.
+    if (this.iframe.parentElement === container) {
+      this.iframe.removeChild(this.iframe);
+    }
+    container.appendChild(this.iframe);
     this.timeoutId = window.setTimeout(
         () => this.done(new Error(`Timed out loading "${this.url}"`)),
-        this.controller.loadTimeout);
+        loadTimeout);
+  }
+
+  private done(error?: Error) {
+    this.running = false;
+    clearTimeout(this.timeoutId);
+    this.controller.notifySuiteChildDone(this, error);
   }
 }

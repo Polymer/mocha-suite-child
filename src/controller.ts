@@ -12,21 +12,36 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import Mocha from 'mocha';
+// import Mocha from 'mocha';
+// import {RunnerProxy} from './runner-proxy';
 import {RunnerProxy} from './runner-proxy';
 import {SuiteChild} from './suite-child';
 
 export const CONTAINER_ID = 'mocha-suite-child-container';
 
+export type ConnectedCallback = (error?: Error) => void;
 export type DoneCallback = (error?: Error) => void;
 
+/**
+ * The `window.MochaSuiteChild` property is an instance of Controller.  Its
+ * function is to be the global interface to register children via
+ * `suiteChild()` and provide affordances for the runners in iframes to callback
+ * and notify about their status.
+ */
 export class Controller {
-  children = new Map<string, SuiteChild>();
   loadTimeout = 60_000;
+  children = new Map<string, SuiteChild>();
+  runnerProxy: RunnerProxy = new RunnerProxy();
 
   private _container?: HTMLElement;
-  private _callback?: DoneCallback;
+  private connectedCallback?: ConnectedCallback;
 
+  /**
+   * This is a lazy-loaded property which will either find or create a container
+   * element to append the iframes for children.  If it creates the element, it
+   * will set its style to not be displayed.  If an existing container element
+   * is found, it will be up to the developer to manage style/display.
+   */
   get container(): HTMLElement {
     if (!this._container) {
       let container = document.getElementById(CONTAINER_ID) as HTMLElement;
@@ -41,25 +56,75 @@ export class Controller {
     return this._container;
   }
 
+  /**
+   * Returns the parent controller, i.e. controller in the parent window.
+   */
   get parent(): Controller|undefined {
     return window.parent && window.parent !== window ?
         window.parent.MochaSuiteChild :
         undefined;
   }
 
+  /**
+   * Returns the SuiteChild instance that created the iframe for the current
+   * context.
+   */
+  get suiteChildOfMine(): SuiteChild|undefined {
+    return this.parent && this.parent.children.get(document.location.href);
+  }
+
+  /**
+   * Registers a child of the current mocha suite.  Use an optional label to
+   * describe the suite:
+   *   `suiteChild('Apple juggling', '/test/juggling.html?object=apples')`
+   * Or skip the label and just provide the URL:
+   *   `suiteChild('/test/juggling.html?object=chainsaws')`
+   */
   suiteChild(labelOrURL: string, url?: string) {
     const suiteChild = new SuiteChild(this, labelOrURL, url);
     this.children.set(suiteChild.url, suiteChild);
   }
 
+  /**
+   * This
+   */
   done(error?: Error) {
-    if (this._callback) {
-      this._callback(error);
+    if (this._doneCallback) {
+      this._doneCallback(error);
     }
   }
 
   run(callback?: DoneCallback) {
-    this._callback = callback;
+    this._doneCallback = callback;
+    for (const child of this.children.values()) {
+      child.run();
+    }
+  }
+
+  /**
+   * Initiate all suite children and run the callback after all iframes report
+   * connected.
+   */
+  runChildren(connectedCallback: ConnectedCallback) {
+    this.connectedCallback = connectedCallback;
+    for (const child of this.children.values()) {
+      child.run(this.container, this.loadTimeout);
+    }
+  }
+
+  notifySuiteChildConnected(_child: SuiteChild) {
+    for (const child of this.children.values()) {
+      if (!child.connected) {
+        return;
+      }
+    }
+    const {connectedCallback} = this;
+    if (connectedCallback) {
+      connectedCallback();
+      this.connectedCallback = undefined;
+    } else {
+      throw new Error('notifySuiteChildConnected called out-of-sequence');
+    }
   }
 
   notifySuiteChildDone(_child: SuiteChild, _error?: Error) {
