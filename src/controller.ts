@@ -80,14 +80,6 @@ export class Controller {
   }
 
   /**
-   * Defer to console.log for now.  Maybe do something more configurable and
-   * interesting later.
-   */
-  log(...msg: unknown[]) {
-    console.log(window.location.href, ...msg);
-  }
-
-  /**
    * Registers a child of the current mocha suite.  Use an optional label to
    * describe the suite:
    *   `suiteChild('Apple juggling', '/test/juggling.html?object=apples')`

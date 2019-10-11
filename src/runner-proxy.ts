@@ -136,9 +136,6 @@ export class RunnerProxy implements Mocha.Runner {
     const events = this.emitQueue;
     this.emitQueue = [];
     for (const event of events) {
-      if (window.location.href.match(/top-suite/)) {
-        console.log('EMITTING', event.name, ...event.extra);
-      }
       this.emit(event.name, ...event.extra);
     }
   }
