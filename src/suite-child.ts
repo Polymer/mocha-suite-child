@@ -55,10 +55,9 @@ export class SuiteChild {
    * for the reporter.
    */
   notifyConnected(runnerProxy: RunnerProxy) {
-    this.controller.log(`notifyConnected: ${this.url}`);
     this.connected = true;
     this.runnerProxy = runnerProxy;
-    this.controller.runnerProxy.listen(runnerProxy, this.url);
+    this.controller.runnerProxy.listen(runnerProxy, this.url, this);
     this.controller.notifySuiteChildConnected(this);
     this.runnerProxy.on(MochaRunnerEvents.EVENT_RUN_END, () => this.done());
   }

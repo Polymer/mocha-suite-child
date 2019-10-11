@@ -30,7 +30,7 @@ export class Controller {
   containerId = DEFAULT_CONTAINER_ID;
   loadTimeout = 60_000;
   children = new Map<string, SuiteChild>();
-  runnerProxy: RunnerProxy = new RunnerProxy();
+  runnerProxy = new RunnerProxy();
 
   private _container?: HTMLElement;
   private connectedCallback?: ConnectedCallback;
@@ -88,7 +88,6 @@ export class Controller {
    *   `suiteChild('/test/juggling.html?object=chainsaws')`
    */
   suiteChild(labelOrURL: string, url?: string) {
-    this.log(`defined suiteChild ${labelOrURL}`);
     const suiteChild = new SuiteChild(this, labelOrURL, url);
     this.children.set(suiteChild.url, suiteChild);
   }
@@ -98,7 +97,10 @@ export class Controller {
    * connected.
    */
   runChildren(connectedCallback: ConnectedCallback) {
-    this.log(`runChildren()`);
+    if (this.children.size === 0) {
+      connectedCallback();
+      return;
+    }
     this.connectedCallback = connectedCallback;
     for (const child of this.children.values()) {
       child.run(this.container, this.loadTimeout);
@@ -106,7 +108,6 @@ export class Controller {
   }
 
   notifySuiteChildConnected(_child: SuiteChild) {
-    this.log(`notifySuiteChildConnected ${_child.label}`);
     for (const child of this.children.values()) {
       if (!child.connected) {
         return;

@@ -12,9 +12,10 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {Runner} from 'mocha';
+import {Runner, Suite} from 'mocha';
 
 import {createStatsCollector} from './stats-collector';
+import {SuiteChild} from './suite-child';
 import {inherit} from './util';
 
 export const MochaRunnerEvents = {
@@ -80,16 +81,29 @@ export const MochaRunnerEvents = {
 }
 
 interface ProxyEvent {
-  name: string, runner: Runner, url: string, extra: unknown[],
+  name: string;
+  runner: Runner;
+  url: string;
+  suiteChild?: SuiteChild;
+  extra: unknown[];
+}
+
+interface EmitEvent {
+  name: string;
+  extra: unknown[];
 }
 
 export class RunnerProxy implements Mocha.Runner {
-  eventBuffer: ProxyEvent[] = [];
+  total = 0
+  stats!: Mocha.Stats;
+  emitQueue: EmitEvent[] = [];
+  processingQueue: ProxyEvent[] = [];
   currentRunner?: Runner;
   private localRunner?: Runner;
   private runBeginEmitted: boolean = false;
   private runEndCount = 0;
   private runnerCount = 0;
+  private rootSuite: Suite;
 
   constructor() {
     // Important: If you don't call this function that attaches the stats
@@ -97,27 +111,59 @@ export class RunnerProxy implements Mocha.Runner {
     // attempts to increment stats on the events like EVENT_TEST_PASS etc and
     // then you will tear out your hair looking for why it isn't working.
     createStatsCollector(this as unknown as Runner);
+    this.rootSuite = new Suite('');
+    this.rootSuite.root = true;
   }
 
   /**
    * Listens for all relevant events emitted by the runner.
    */
-  listen(runner: Mocha.Runner, url: string) {
+  listen(runner: Mocha.Runner, url: string, suiteChild?: SuiteChild) {
     if (runner instanceof Mocha.Runner) {
       this.localRunner = runner;
     }
+    ++this.runnerCount;
     this.total = this.total + runner.total;
     for (const name of Object.values(MochaRunnerEvents)) {
       runner.on(
-          name, (...extra) => this.proxyEvent({name, url, runner, extra}));
+          name,
+          (...extra) =>
+              this.processEvent({name, url, runner, suiteChild, extra}));
     }
   }
 
-  private proxyEvent(event: ProxyEvent) {
+  private flushEmitQueue() {
+    const events = this.emitQueue;
+    this.emitQueue = [];
+    for (const event of events) {
+      if (window.location.href.match(/top-suite/)) {
+        console.log('EMITTING', event.name, ...event.extra);
+      }
+      this.emit(event.name, ...event.extra);
+    }
+  }
+
+  private flushProcessingQueue() {
+    const events = this.processingQueue;
+    this.processingQueue = [];
+    for (const event of events) {
+      this.processEvent(event);
+    }
+  }
+
+  private processEvent(event: ProxyEvent) {
     // If we are currently processing events for a different runner, we will
-    // just put this event into the buffer.
+    // just put this event into the process queue and handle it later.
     if (this.currentRunner && this.currentRunner !== event.runner) {
-      this.eventBuffer.push(event);
+      this.processingQueue.push(event);
+      return;
+    }
+
+    // If we haven't put any events into the emit queue yet, it is because we
+    // haven't started processing events for the local runner yet.  We need to
+    // process those first so they report first.
+    if (this.emitQueue.length === 0 && this.localRunner !== event.runner) {
+      this.processingQueue.push(event);
       return;
     }
 
@@ -125,35 +171,77 @@ export class RunnerProxy implements Mocha.Runner {
       this.currentRunner = event.runner;
       if (!this.runBeginEmitted) {
         this.runBeginEmitted = true;
-        this.emit(MochaRunnerEvents.EVENT_RUN_BEGIN);
+        this.emitQueue.push(event);
+        this.emitQueue.push({
+          name: MochaRunnerEvents.EVENT_SUITE_BEGIN,
+          extra: [this.rootSuite]
+        })
       }
       return;
     }
 
     if (event.name === MochaRunnerEvents.EVENT_RUN_END) {
+      this.currentRunner = undefined;
       ++this.runEndCount;
+
+      if (this.processingQueue.length > 0) {
+        this.flushProcessingQueue();
+        return;
+      }
 
       // We can emit the run end event only when we have started listening to
       // the local mocha runner and have heard run end events from all runners
       // we are listening to.
       if (this.localRunner && this.runEndCount === this.runnerCount) {
-        this.emit(MochaRunnerEvents.EVENT_RUN_END);
-        return;
+        this.emitQueue.push(
+            {name: MochaRunnerEvents.EVENT_SUITE_END, extra: [this.rootSuite]});
+        this.emitQueue.push(event);
+        this.flushEmitQueue();
       }
+
+      return;
     }
 
     // Lets use the label to prepend the child's suite title if we are running
     // in a suite child context.
     if (event.name === MochaRunnerEvents.EVENT_SUITE_BEGIN) {
-      const {suiteChildOfMine} = window.MochaSuiteChild;
-      if (suiteChildOfMine) {
-        const suite = event.extra[0] as unknown as Mocha.Suite;
-        suite.title = `${suiteChildOfMine.label} ${suite.title}`;
+      const suite = event.extra[0] as unknown as Suite;
+      if (suite.root) {
+        // If the event has no suiteChild, then this is a root suite from the
+        // local runner, and we want to steal its children and put them in our
+        // merged synthetic `this.rootSuite`. have `this.rootSuite`.
+        if (!event.suiteChild) {
+          for (const childSuite of suite.suites) {
+            this.rootSuite.suites.push(childSuite);
+            childSuite.parent = this.rootSuite;
+          }
+          return;
+        }
+
+        // Otherwise, lets make this suite child's root suite a child of
+        // `this.rootSuite`, give it a title and remove it's "root" status.
+        this.rootSuite.suites.push(suite);
+        suite.title = event.suiteChild.label;
+        suite.root = false;
+        suite.parent = this.rootSuite;
+      }
+    }
+
+    // Lets use the label to prepend the child's suite title if we are running
+    // in a suite child context.
+    if (event.name === MochaRunnerEvents.EVENT_SUITE_END) {
+      const suite = event.extra[0] as unknown as Suite;
+      // If the suite is a root suite, we can discard it, since the only root
+      // suite we need to emit and end event for is `this.rootSuite` right
+      // before the run end event.  This root suite is the one from the local
+      // runner for which we've already discarded the run begin event.
+      if (suite.root) {
+        return;
       }
     }
 
     // Lets just proxy that event.
-    this.emit(event.name, ...event.extra);
+    this.emitQueue.push(event);
   }
 }
 

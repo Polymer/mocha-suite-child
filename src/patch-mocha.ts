@@ -46,9 +46,8 @@ export const patchMocha = (mocha: Mocha) => {
      */
     function PseudoReporterConstructor(
         runner: Mocha.Runner, options: Mocha.MochaOptions) {
-      window.MochaSuiteChild.log(`I'm in the PRC`);
       runnerProxy.listen(runner, url);
-      
+
       // If we are running in an iframe created by a controller in the parent
       // window, then suiteChildOfMine will be the SuiteChild class that is
       // managing the iframe.
