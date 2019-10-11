@@ -17,7 +17,7 @@ An example `.html` file using `mocha-suite-child` package to include 3 child sui
   // the same test suite files can be reused as children, with different
   // configurations. These must be defined at the top-level, i.e.
   // they can't be nested within Mocha's own `suite()` declarations.
-	suiteChild('Juggling apples', './juggle.html?obj=apples');
+  suiteChild('Juggling apples', './juggle.html?obj=apples');
   suiteChild('Juggling chainsaws', './juggle.html?obj=chainsaws');
   suiteChild('Bicycling tests', './bicycling.html');
   
