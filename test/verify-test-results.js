@@ -20,9 +20,7 @@ getStream(process.stdin).then((actualTestResults) => {
 
   try {
     chai.expect(actualTestResults)
-        .to.include(
-            `  The Top-Suite\n    oh hai\n      ✓ local test`,
-            `Should include top suite tests first.`);
+        .to.include(`  The Top-Suite\n    oh hai\n      ✓ local test`);
     chai.expect(actualTestResults)
         .to.include(
             `    Child Suite 1 with query "a"\n` +
