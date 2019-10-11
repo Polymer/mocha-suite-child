@@ -1,4 +1,4 @@
-# mocha-suite-child (of mine)
+# mocha-suite-child
 
 Intended for use when running mocha in web-browsers, runs mocha test suites defined in HTML documents and include the results as if they are part of the main context.
 
