@@ -12,8 +12,6 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-// import Mocha from 'mocha';
-// import {RunnerProxy} from './runner-proxy';
 import {RunnerProxy} from './runner-proxy';
 import {SuiteChild} from './suite-child';
 
