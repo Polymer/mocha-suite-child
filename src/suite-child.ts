@@ -55,6 +55,7 @@ export class SuiteChild {
    * for the reporter.
    */
   notifyConnected(runnerProxy: RunnerProxy) {
+    this.controller.log(`notifyConnected: ${this.url}`);
     this.connected = true;
     this.runnerProxy = runnerProxy;
     this.controller.runnerProxy.listen(runnerProxy, this.url);
@@ -87,6 +88,8 @@ export class SuiteChild {
   private done(error?: Error) {
     this.running = false;
     clearTimeout(this.timeoutId);
-    this.controller.notifySuiteChildDone(this, error);
+    if (error) {
+      throw error;
+    }
   }
 }

@@ -113,9 +113,6 @@ export class RunnerProxy implements Mocha.Runner {
     }
   }
 
-  waitForChildren(children: Map<string, SuiteChild>, callback: Function) {
-  }
-
   private proxyEvent(event: ProxyEvent) {
     // If we are currently processing events for a different runner, we will
     // just put this event into the buffer.

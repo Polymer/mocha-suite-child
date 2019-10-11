@@ -36,19 +36,7 @@ export const patchMocha = (mocha: Mocha) => {
     // Run all child suites, wait for them to provide their runner proxies so
     // the local runner proxy can listen to them and obtain accurate test
     // totals.
-    window.MochaSuiteChild.runChildren(() => {
-      // Note: We are relying on the fact that the `originalRun` is
-      originalRun(callback);
-
-      // If we are running in an iframe created by a controller in the parent
-      // window, then suiteChildOfMine will be the SuiteChild class that is
-      // managing the iframe.
-      if (suiteChildOfMine) {
-        // Connect the local runner proxy to the SuiteChild in the parent window
-        // that created the iframe the current context is running in.
-        suiteChildOfMine.notifyConnected(runnerProxy);
-      }
-    });
+    window.MochaSuiteChild.runChildren(() => originalRun(callback));
 
     /**
      * The API of `Mocha#reporter` is that it be given a constructor function
@@ -58,7 +46,18 @@ export const patchMocha = (mocha: Mocha) => {
      */
     function PseudoReporterConstructor(
         runner: Mocha.Runner, options: Mocha.MochaOptions) {
+      window.MochaSuiteChild.log(`I'm in the PRC`);
       runnerProxy.listen(runner, url);
+      
+      // If we are running in an iframe created by a controller in the parent
+      // window, then suiteChildOfMine will be the SuiteChild class that is
+      // managing the iframe.
+      if (suiteChildOfMine) {
+        // Connect the local runner proxy to the SuiteChild in the parent window
+        // that created the iframe the current context is running in.
+        suiteChildOfMine.notifyConnected(runnerProxy);
+      }
+
       new originalReporter(runnerProxy, options);
     }
 

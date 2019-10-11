@@ -17,10 +17,8 @@
 import {RunnerProxy} from './runner-proxy';
 import {SuiteChild} from './suite-child';
 
-export const CONTAINER_ID = 'mocha-suite-child-container';
-
+export const DEFAULT_CONTAINER_ID = 'mocha-suite-child-container';
 export type ConnectedCallback = (error?: Error) => void;
-export type DoneCallback = (error?: Error) => void;
 
 /**
  * The `window.MochaSuiteChild` property is an instance of Controller.  Its
@@ -29,6 +27,7 @@ export type DoneCallback = (error?: Error) => void;
  * and notify about their status.
  */
 export class Controller {
+  containerId = DEFAULT_CONTAINER_ID;
   loadTimeout = 60_000;
   children = new Map<string, SuiteChild>();
   runnerProxy: RunnerProxy = new RunnerProxy();
@@ -44,10 +43,10 @@ export class Controller {
    */
   get container(): HTMLElement {
     if (!this._container) {
-      let container = document.getElementById(CONTAINER_ID) as HTMLElement;
+      let container = document.getElementById(this.containerId) as HTMLElement;
       if (!container) {
         container = document.createElement('div');
-        container.id = CONTAINER_ID;
+        container.id = this.containerId;
         container.style.display = 'none';
         document.body.appendChild(container);
       }
@@ -74,6 +73,14 @@ export class Controller {
   }
 
   /**
+   * Defer to console.log for now.  Maybe do something more configurable and
+   * interesting later.
+   */
+  log(...msg: unknown[]) {
+    console.log(window.location.href, ...msg);
+  }
+
+  /**
    * Registers a child of the current mocha suite.  Use an optional label to
    * describe the suite:
    *   `suiteChild('Apple juggling', '/test/juggling.html?object=apples')`
@@ -81,24 +88,9 @@ export class Controller {
    *   `suiteChild('/test/juggling.html?object=chainsaws')`
    */
   suiteChild(labelOrURL: string, url?: string) {
+    this.log(`defined suiteChild ${labelOrURL}`);
     const suiteChild = new SuiteChild(this, labelOrURL, url);
     this.children.set(suiteChild.url, suiteChild);
-  }
-
-  /**
-   * This
-   */
-  done(error?: Error) {
-    if (this._doneCallback) {
-      this._doneCallback(error);
-    }
-  }
-
-  run(callback?: DoneCallback) {
-    this._doneCallback = callback;
-    for (const child of this.children.values()) {
-      child.run();
-    }
   }
 
   /**
@@ -106,6 +98,7 @@ export class Controller {
    * connected.
    */
   runChildren(connectedCallback: ConnectedCallback) {
+    this.log(`runChildren()`);
     this.connectedCallback = connectedCallback;
     for (const child of this.children.values()) {
       child.run(this.container, this.loadTimeout);
@@ -113,6 +106,7 @@ export class Controller {
   }
 
   notifySuiteChildConnected(_child: SuiteChild) {
+    this.log(`notifySuiteChildConnected ${_child.label}`);
     for (const child of this.children.values()) {
       if (!child.connected) {
         return;
@@ -124,21 +118,6 @@ export class Controller {
       this.connectedCallback = undefined;
     } else {
       throw new Error('notifySuiteChildConnected called out-of-sequence');
-    }
-  }
-
-  notifySuiteChildDone(_child: SuiteChild, _error?: Error) {
-    // TODO(usergenic): store the error so we can report on all errors in suite
-    // children.
-
-    let allDone = true;
-    for (const child of this.children.values()) {
-      if (child.running) {
-        allDone = false;
-      }
-    }
-    if (allDone) {
-      this.done();
     }
   }
 }
