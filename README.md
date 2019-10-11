@@ -6,7 +6,7 @@ An example `.html` file using `mocha-suite-child` package to include 3 child sui
 
 ```html
 <script src="./node_modules/mocha/mocha.js"></script>
-<!-- Load mocha-suite-child right after you mocha for best results. -->
+<!-- Load mocha-suite-child right after mocha for best results. -->
 <script src="./node_modules/mocha-suite-child/mocha-suite-child.js"></script>
 <script src="./node_modules/chai/chai.js"></script>
 <script>
