@@ -29,7 +29,7 @@ export type ConnectedCallback = (error?: Error) => void;
 export class Controller {
   containerId = DEFAULT_CONTAINER_ID;
   loadTimeout = 60_000;
-  children = new Map<string, SuiteChild>();
+  children: SuiteChild[] = [];
   runnerProxy = new RunnerProxy();
 
   private _container?: HTMLElement;
@@ -69,7 +69,14 @@ export class Controller {
    * context.
    */
   get suiteChildOfMine(): SuiteChild|undefined {
-    return this.parent && this.parent.children.get(document.location.href);
+    if (this.parent) {
+      for (const child of this.parent.children) {
+        if (child.url === document.location.href) {
+          return child;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -89,7 +96,7 @@ export class Controller {
    */
   suiteChild(labelOrURL: string, url?: string) {
     const suiteChild = new SuiteChild(this, labelOrURL, url);
-    this.children.set(suiteChild.url, suiteChild);
+    this.children.push(suiteChild);
   }
 
   /**
@@ -97,18 +104,18 @@ export class Controller {
    * connected.
    */
   runChildren(connectedCallback: ConnectedCallback) {
-    if (this.children.size === 0) {
+    if (this.children.length === 0) {
       connectedCallback();
       return;
     }
     this.connectedCallback = connectedCallback;
-    for (const child of this.children.values()) {
+    for (const child of this.children) {
       child.run(this.container, this.loadTimeout);
     }
   }
 
   notifySuiteChildConnected(_child: SuiteChild) {
-    for (const child of this.children.values()) {
+    for (const child of this.children) {
       if (!child.connected) {
         return;
       }

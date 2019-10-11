@@ -152,6 +152,11 @@ export class RunnerProxy implements Mocha.Runner {
   }
 
   private processEvent(event: ProxyEvent) {
+    // TODO(usergenic): We might be able to make an optimization to this method
+    // whereby we can flush the emitQueue after the final runner's root
+    // suite start event has come in.  We would need to explicitly track which
+    // runners have emitted root suite begin events of course.
+
     // If we are currently processing events for a different runner, we will
     // just put this event into the process queue and handle it later.
     if (this.currentRunner && this.currentRunner !== event.runner) {
@@ -171,11 +176,19 @@ export class RunnerProxy implements Mocha.Runner {
       this.currentRunner = event.runner;
       if (!this.runBeginEmitted) {
         this.runBeginEmitted = true;
-        this.emitQueue.push(event);
+
+        // Emit the run begin event immediately to signal to the reporter that
+        // it's on.  This should help avoid any timeouts related to waiting for
+        // first event.  Everything else must move to the emit queue, however,
+        // because the root suite *has* to have a reference to all sub-suites
+        // and those can only reliably known once all runners have reported all
+        // of their root suite begin events.
+        this.emit(event.name);
+
         this.emitQueue.push({
           name: MochaRunnerEvents.EVENT_SUITE_BEGIN,
           extra: [this.rootSuite]
-        })
+        });
       }
       return;
     }
