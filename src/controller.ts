@@ -36,8 +36,8 @@ export class Controller {
   /**
    * This is a lazy-loaded property which will either find or create a container
    * element to append the iframes for children.  If it creates the element, it
-   * will set its style to not be displayed.  If an existing container element
-   * is found, it will be up to the developer to manage style/display.
+   * will manage the visibility and positioning of the element.  If an existing
+   * container element is found, it will be up to the developer to manage style.
    */
   get container(): HTMLElement {
     if (!this._container) {
@@ -45,7 +45,10 @@ export class Controller {
       if (!container) {
         container = document.createElement('div');
         container.id = this.containerId;
-        container.style.display = 'none';
+        container.style.position = 'absolute';
+        container.style.top = '-9999px';
+        container.style.left = '-9999px';
+        container.style.clip = 'rect(0px, 0px, 0px, 0px)';
         document.body.appendChild(container);
       }
       this._container = container;
