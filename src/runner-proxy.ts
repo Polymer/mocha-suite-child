@@ -18,7 +18,7 @@ import {createStatsCollector} from './stats-collector';
 import {SuiteChild} from './suite-child';
 import {inherit} from './util';
 
-export const MochaRunnerEvents = {
+export const MochaRunnerEvents: {[key: string]: string} = {
   /**
    * Emitted when {@link Hook} execution begins
    */
@@ -124,11 +124,14 @@ export class RunnerProxy implements Mocha.Runner {
     }
     ++this.runnerCount;
     this.total = this.total + runner.total;
-    for (const name of Object.values(MochaRunnerEvents)) {
-      runner.on(
-          name,
-          (...extra) =>
-              this.processEvent({name, url, runner, suiteChild, extra}));
+    for (const key in MochaRunnerEvents) {
+      if (MochaRunnerEvents.hasOwnProperty(key)) {
+        const name = MochaRunnerEvents[key] as string;
+        runner.on(
+            name,
+            (...extra) =>
+                this.processEvent({name, url, runner, suiteChild, extra}));
+      }
     }
   }
 
