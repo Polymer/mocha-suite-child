@@ -12,8 +12,9 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {Runner} from 'mocha';
 import {Controller} from './controller';
-import {MochaRunnerEvents, RunnerProxy} from './runner-proxy';
+import {RunnerProxy} from './runner-proxy';
 
 /**
  * Defines and manages the execution of an external HTML document containing a
@@ -59,7 +60,7 @@ export class SuiteChild {
     this.runnerProxy = runnerProxy;
     this.controller.runnerProxy.listen(runnerProxy, this.url, this);
     this.controller.notifySuiteChildConnected(this);
-    this.runnerProxy.on(MochaRunnerEvents.EVENT_RUN_END, () => this.done());
+    this.runnerProxy.on(Runner.constants.EVENT_RUN_END, () => this.done());
   }
 
   /**

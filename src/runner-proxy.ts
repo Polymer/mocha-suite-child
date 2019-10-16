@@ -18,68 +18,6 @@ import {createStatsCollector} from './stats-collector';
 import {SuiteChild} from './suite-child';
 import {inherit} from './util';
 
-export const MochaRunnerEvents: {[key: string]: string} = {
-  /**
-   * Emitted when {@link Hook} execution begins
-   */
-  EVENT_HOOK_BEGIN: 'hook',
-  /**
-   * Emitted when {@link Hook} execution ends
-   */
-  EVENT_HOOK_END: 'hook end',
-  /**
-   * Emitted when Root {@link Suite} execution begins (all files have been
-   * parsed and hooks/tests are ready for execution)
-   */
-  EVENT_RUN_BEGIN: 'start',
-  /**
-   * Emitted when Root {@link Suite} execution has been delayed via `delay`
-   * option
-   */
-  EVENT_DELAY_BEGIN: 'waiting',
-  /**
-   * Emitted when delayed Root {@link Suite} execution is triggered by user via
-   * `global.run()`
-   */
-  EVENT_DELAY_END: 'ready',
-  /**
-   * Emitted when Root {@link Suite} execution ends
-   */
-  EVENT_RUN_END: 'end',
-  /**
-   * Emitted when {@link Suite} execution begins
-   */
-  EVENT_SUITE_BEGIN: 'suite',
-  /**
-   * Emitted when {@link Suite} execution ends
-   */
-  EVENT_SUITE_END: 'suite end',
-  /**
-   * Emitted when {@link Test} execution begins
-   */
-  EVENT_TEST_BEGIN: 'test',
-  /**
-   * Emitted when {@link Test} execution ends
-   */
-  EVENT_TEST_END: 'test end',
-  /**
-   * Emitted when {@link Test} execution fails
-   */
-  EVENT_TEST_FAIL: 'fail',
-  /**
-   * Emitted when {@link Test} execution succeeds
-   */
-  EVENT_TEST_PASS: 'pass',
-  /**
-   * Emitted when {@link Test} becomes pending
-   */
-  EVENT_TEST_PENDING: 'pending',
-  /**
-   * Emitted when {@link Test} execution has failed, but will retry
-   */
-  EVENT_TEST_RETRY: 'retry'
-}
-
 interface ProxyEvent {
   name: string;
   runner: Runner;
@@ -93,7 +31,7 @@ interface EmitEvent {
   extra: unknown[];
 }
 
-export class RunnerProxy implements Mocha.Runner {
+export class RunnerProxy implements Runner {
   total = 0
   stats!: Mocha.Stats;
   emitQueue: EmitEvent[] = [];
@@ -118,15 +56,21 @@ export class RunnerProxy implements Mocha.Runner {
   /**
    * Listens for all relevant events emitted by the runner.
    */
-  listen(runner: Mocha.Runner, url: string, suiteChild?: SuiteChild) {
-    if (runner instanceof Mocha.Runner) {
+  listen(runner: Runner, url: string, suiteChild?: SuiteChild) {
+    if (runner instanceof Runner) {
       this.localRunner = runner;
     }
     ++this.runnerCount;
     this.total = this.total + runner.total;
-    for (const key in MochaRunnerEvents) {
-      if (MochaRunnerEvents.hasOwnProperty(key)) {
-        const name = MochaRunnerEvents[key] as string;
+    for (const key in Runner.constants) {
+      // `Runner.constants` may have a null prototype, built as it is from
+      // Mocha utils' `createMap` function, so `hasOwnProperty` may be
+      // unavailable on it directly.  Therefore, we use `Object.prototype`
+      // explicitly to obtain `hasOwnProperty()` to test for the property.
+      // Further, we are only interested in the `EVENT_*` named constants.
+      if (/^EVENT_/.test(key) &&
+          Object.prototype.hasOwnProperty.call(Runner.constants, key)) {
+        const name = Runner.constants[key] as string;
         runner.on(
             name,
             (...extra) =>
@@ -172,7 +116,7 @@ export class RunnerProxy implements Mocha.Runner {
       return;
     }
 
-    if (event.name === MochaRunnerEvents.EVENT_RUN_BEGIN) {
+    if (event.name === Runner.constants.EVENT_RUN_BEGIN) {
       this.currentRunner = event.runner;
       if (!this.runBeginEmitted) {
         this.runBeginEmitted = true;
@@ -186,14 +130,14 @@ export class RunnerProxy implements Mocha.Runner {
         this.emit(event.name);
 
         this.emitQueue.push({
-          name: MochaRunnerEvents.EVENT_SUITE_BEGIN,
+          name: Runner.constants.EVENT_SUITE_BEGIN,
           extra: [this.rootSuite]
         });
       }
       return;
     }
 
-    if (event.name === MochaRunnerEvents.EVENT_RUN_END) {
+    if (event.name === Runner.constants.EVENT_RUN_END) {
       this.currentRunner = undefined;
       ++this.runEndCount;
 
@@ -207,7 +151,7 @@ export class RunnerProxy implements Mocha.Runner {
       // we are listening to.
       if (this.localRunner && this.runEndCount === this.runnerCount) {
         this.emitQueue.push(
-            {name: MochaRunnerEvents.EVENT_SUITE_END, extra: [this.rootSuite]});
+            {name: Runner.constants.EVENT_SUITE_END, extra: [this.rootSuite]});
         this.emitQueue.push(event);
         this.flushEmitQueue();
       }
@@ -217,7 +161,7 @@ export class RunnerProxy implements Mocha.Runner {
 
     // Lets use the label to prepend the child's suite title if we are running
     // in a suite child context.
-    if (event.name === MochaRunnerEvents.EVENT_SUITE_BEGIN) {
+    if (event.name === Runner.constants.EVENT_SUITE_BEGIN) {
       const suite = event.extra[0] as unknown as Suite;
       if (suite.root) {
         // If the event has no suiteChild, then this is a root suite from the
@@ -242,7 +186,7 @@ export class RunnerProxy implements Mocha.Runner {
 
     // Lets use the label to prepend the child's suite title if we are running
     // in a suite child context.
-    if (event.name === MochaRunnerEvents.EVENT_SUITE_END) {
+    if (event.name === Runner.constants.EVENT_SUITE_END) {
       const suite = event.extra[0] as unknown as Suite;
       // If the suite is a root suite, we can discard it, since the only root
       // suite we need to emit and end event for is `this.rootSuite` right
@@ -261,4 +205,4 @@ export class RunnerProxy implements Mocha.Runner {
 // `RunnerEventProxy` instances inherit methods and properties of
 // `Mocha.Runner` for the `EventEmitter` functionality.
 inherit(RunnerProxy.prototype, Object.getPrototypeOf(Runner.prototype));
-export interface RunnerProxy extends Mocha.Runner {}
+export interface RunnerProxy extends Runner {}

@@ -12,7 +12,6 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import Mocha from 'mocha';
 import {Controller} from './controller';
 
 declare global {
@@ -21,5 +20,11 @@ declare global {
     Mocha: typeof Mocha;
     MochaSuiteChild: Controller;
     suiteChild: typeof Controller.prototype.suiteChild;
+  }
+}
+
+declare module 'mocha' {
+  namespace Runner {
+    let constants: {[key: string]: string};
   }
 }
