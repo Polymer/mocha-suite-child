@@ -12,11 +12,28 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-const getStream = require('get-stream');
 const chai = require('chai');
 
-getStream(process.stdin).then((actualTestResults) => {
-  console.log('Test Results:\n', actualTestResults);
+let input = '';
+let unterminatedContent = '';
+process.stdin.resume();
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => {
+  input = input + chunk;
+  const terminated = chunk.match(/(?:\n|.)*\n/m);
+  if (terminated) {
+    const terminatedContent = terminated[0];
+    process.stdout.write(unterminatedContent + terminatedContent);
+    unterminatedContent = chunk.slice(terminatedContent.length);
+  }
+});
+process.stdin.on('end', () => {
+  if (unterminatedContent) {
+    process.stdout.write(unterminatedContent);
+    unterminatedContent = '';
+  }
+
+  const actualTestResults = input;
 
   try {
     chai.expect(actualTestResults)
@@ -49,6 +66,6 @@ getStream(process.stdin).then((actualTestResults) => {
     process.exit(1);
   }
 
-  console.log('Matched expected test results!');
+  process.stdout.write('Matched expected test results!');
   process.exit(0);
 });
