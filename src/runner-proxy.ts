@@ -14,7 +14,6 @@
 
 import {Runner, Suite} from 'mocha';
 
-import {createStatsCollector} from './stats-collector';
 import {SuiteChild} from './suite-child';
 import {inherit} from './util';
 
@@ -33,7 +32,8 @@ interface EmitEvent {
 
 export class RunnerProxy implements Runner {
   total = 0
-  stats!: Mocha.Stats;
+  stats:
+      Mocha.Stats = {suites: 0, tests: 0, passes: 0, pending: 0, failures: 0};
   emitQueue: EmitEvent[] = [];
   processingQueue: ProxyEvent[] = [];
   currentRunner?: Runner;
@@ -44,15 +44,26 @@ export class RunnerProxy implements Runner {
   private rootSuite: Suite;
 
   constructor() {
-    // Important: If you don't call this function that attaches the stats
-    // objects to the runner instance, Mocha will just silently fail as it
-    // attempts to increment stats on the events like EVENT_TEST_PASS etc and
-    // then you will tear out your hair looking for why it isn't working.
-    createStatsCollector(this as unknown as Runner);
+    this.on(
+        Runner.constants.EVENT_RUN_BEGIN, () => this.stats.start = new Date());
+    this.on(
+        Runner.constants.EVENT_SUITE_BEGIN,
+        (suite) => suite.root || ++this.stats.suites);
+    this.on(Runner.constants.EVENT_TEST_PASS, () => ++this.stats.passes);
+    this.on(Runner.constants.EVENT_TEST_FAIL, () => ++this.stats.failures);
+    this.on(Runner.constants.EVENT_TEST_PENDING, () => ++this.stats.pending);
+    this.on(Runner.constants.EVENT_TEST_END, () => ++this.stats.tests);
+    this.on(Runner.constants.EVENT_RUN_END, () => {
+      this.stats.end = new Date();
+      this.stats.duration = +this.stats.end - +this.stats.start!;
+    });
     this.rootSuite = new Suite('');
     this.rootSuite.root = true;
   }
 
+  initStats() {
+    return
+  }
   /**
    * Listens for all relevant events emitted by the runner.
    */
