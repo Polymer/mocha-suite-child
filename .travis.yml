@@ -1,0 +1,29 @@
+language: node_js
+sudo: false
+dist: xenial
+node_js: '10'
+addons:
+  firefox: latest
+  apt:
+    sources:
+      - google-chrome
+    packages:
+      - google-chrome-stable
+cache:
+  directories:
+  - node_modules
+env:
+  global:
+matrix:
+  fast_finish: true
+  allow_failures:
+  - env: JOB=benchmark
+  include:
+  - env: JOB=test KARMA_BROWSERS="Chrome,Firefox"
+    before_script:
+      - time npm run lint
+    script: 
+      - xvfb-run time npm run test
+  - env: JOB=benchmark
+    script:
+      - ./travis-bench.sh
