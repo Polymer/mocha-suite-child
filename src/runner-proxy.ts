@@ -61,9 +61,6 @@ export class RunnerProxy implements Runner {
     this.rootSuite.root = true;
   }
 
-  initStats() {
-    return
-  }
   /**
    * Listens for all relevant events emitted by the runner.
    */

@@ -1,5 +1,7 @@
 // Karma configuration
 // Generated on Tue Sep 24 2019 11:48:17 GMT-0700 (PDT)
+const karmaBrowsers =
+    (process.env.KARMA_BROWSERS || '').split(/ *, */).filter(Boolean);
 
 module.exports = function(config) {
   config.set({
@@ -45,7 +47,7 @@ module.exports = function(config) {
     // start these browsers
     // available browser launchers:
     // https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['Chrome'],
+    browsers: karmaBrowsers,
 
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits
@@ -54,5 +56,9 @@ module.exports = function(config) {
     // Concurrency level
     // how many browser should be started simultaneous
     concurrency: Infinity
-  });
+  })
 };
+
+console.log('---');
+console.log('KARMA_BROWSERS:', karmaBrowsers);
+console.log('---');
